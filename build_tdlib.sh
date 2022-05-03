@@ -14,5 +14,22 @@ rm -rf build
 mkdir build
 cd build
 
-CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-10 CXX=/usr/bin/clang++-10 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=../tdlib ..
-cmake --build . --target install
+MODE=$1
+if [[ $MODE == "32bit" ]]; then
+  # On rpi
+  # ln -s /usr/bin/clang++-10 /usr/bin/clang++
+  # ln -s /usr/bin/clang-10 /usr/bin/clang
+  sed -i "378i else()\n  target_link_libraries(tdutils PUBLIC atomic)" /td/tdutils/CMakeLists.txt
+  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=../tdlib -DTD_ENABLE_LTO=ON ..
+  cmake --build . --target prepare_cross_compiling -j $(nproc)
+  cd ..
+  php SplitSource.php
+  cd build
+  cmake --build . --target install -j $(nproc)
+  cd ..
+  php SplitSource.php --undo
+else
+  CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-10 CXX=/usr/bin/clang++-10 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=../tdlib ..
+  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=../tdlib ..
+  cmake --build . --target install
+fi
